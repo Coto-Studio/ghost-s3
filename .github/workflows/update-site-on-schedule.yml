@@ -1,0 +1,51 @@
+name: Ghost Site - Build & Deploy on Schedule
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  check-base-image:
+    name: Check Base Image
+    runs-on: ubuntu-latest
+    outputs:
+      rebuild: ${{ steps.baseupdatecheck.outputs.needs-updating }}
+    steps:
+      - name: OP Load secrets
+        id: op-load-secrets
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          WORKFLOWS_PAT: "op://Coto.Studio - Deploy/dvdxlvxhkphndlusdv7gecvenq/credential"
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: https://ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ steps.op-load-secrets.outputs.WORKFLOWS_PAT }}
+
+      - name: Docker Image Update Checker
+        id: baseupdatecheck
+        uses: lucacome/docker-image-update-checker@v2
+        with:
+          base-image: ghost:5-alpine
+          image: ghcr.io/coto-studio/ghost-s3 # update for your image
+          platforms: linux/amd64,linux/arm64
+
+  # only execute subsequent steps if an update is actually NEEDED.
+  build-and-deploy:
+    name: Build & Deploy
+    needs: check-base-image
+    if: ${{ needs.check-base-image.outputs.rebuild }}
+    uses: ./.github/workflows/build-image.yml
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+    with:
+      image-name: ghost-s3

@@ -1,0 +1,24 @@
+name: Build Image
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN:
+        required: true
+    inputs:
+      image-name:
+        required: true
+        type: string
+
+permissions:
+  packages: write
+
+jobs:
+  cs-docker-build-image:
+    name: CS Workflow
+    uses: Coto-Studio/workflows/.github/workflows/docker-build-image.yml@main
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+    with:
+      image-name: ${{ inputs.image-name }}

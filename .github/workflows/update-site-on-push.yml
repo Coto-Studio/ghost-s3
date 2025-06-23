@@ -1,0 +1,19 @@
+name: Ghost Image - Build & Push
+
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  build-image:
+    name: Ghost Image
+    uses: ./.github/workflows/build-image.yml
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+    with:
+      image-name: ghost-s3
