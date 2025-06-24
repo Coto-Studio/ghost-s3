@@ -3,25 +3,23 @@ name: Ghost Image - Build on Schedule
 on:
   schedule:
     - cron: "0 4 * * *"
-  # workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
   packages: write
 
 jobs:
   check-base-image:
-    name: Check Base Image
-    uses: Coto-Studio/workflows/.github/workflows/docker-build-image.yml@main
+    name: CS Workflow
+    uses: Coto-Studio/workflows/.github/workflows/check-base-image.yml@main
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
   # only execute subsequent steps if an update is actually NEEDED.
-  # build-and-deploy:
-  #   name: Build & Deploy
-  #   needs: check-base-image
-  #   if: ${{ needs.check-base-image.outputs.rebuild }}
-  #   uses: ./.github/workflows/build-image.yml
-  #   secrets:
-  #     OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-  #   with:
-  #     image-name: ghost-s3
+  build-and-deploy:
+    name: Build & Deploy
+    needs: check-base-image
+    if: ${{ !needs.check-base-image.outputs.rebuild }}
+    uses: ./.github/workflows/build-image.yml
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}

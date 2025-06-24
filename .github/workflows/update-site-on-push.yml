@@ -1,4 +1,4 @@
-name: Ghost Image - Build & Push
+name: Ghost Image - Build on Push
 
 on:
   push:
@@ -15,5 +15,3 @@ jobs:
     uses: ./.github/workflows/build-image.yml
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-    with:
-      image-name: ghost-s3
