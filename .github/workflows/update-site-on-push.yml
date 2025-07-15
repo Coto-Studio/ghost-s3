@@ -1,4 +1,4 @@
-name: Ghost Image - Build on Push
+name: Ghost S3 Image - Build on Push
 
 on:
   push:

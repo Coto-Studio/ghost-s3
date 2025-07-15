@@ -1,4 +1,4 @@
-name: Ghost Image - Build on Schedule
+name: Ghost S3 Image - Build on Schedule
 
 on:
   schedule:

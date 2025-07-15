@@ -13,6 +13,31 @@ permissions:
 jobs:
   cs-docker-build-image:
     name: CS Workflow
-    uses: Coto-Studio/workflows/.github/workflows/docker-build-image-v2.yml@main
+    uses: Coto-Studio/workflows/.github/workflows/docker-build-image-v3.yml@main
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
+  pushover-notification:
+    name: Stack Deploy
+    needs: cs-docker-build-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: OP Load secrets
+        id: op-load-secrets
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ vars.PUSHOVER_USER_KEY_OP_REF }}
+          PUSHOVER_API_TOKEN_GITHUB: ${{ vars.PUSHOVER_API_TOKEN_GITHUB_OP_REF }}
+
+      - name: pushover-actions
+        uses: umahmood/pushover-actions@main
+        env:
+          PUSHOVER_TOKEN: ${{ steps.op-load-secrets.outputs.PUSHOVER_API_TOKEN_GITHUB }}
+          PUSHOVER_USER: ${{ steps.op-load-secrets.outputs.PUSHOVER_USER_KEY }}
+        with:
+          status: ${{ job.status }}
+          title: "${{ github.workflow }}"
+          message: "The GitHub Workflow, ${{ github.workflow }} was run for the repository ${{ github.repository }} with the status of ${{ job.status }}."
