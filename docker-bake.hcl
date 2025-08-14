@@ -15,12 +15,13 @@ variable "REPO" {
 }
 
 variable "BASE_TAG" {
-  default = "6"
+  default = "6-alpine"
 }
 
 variable "LEGACY_TAG" {
-  default = "5"
+  default = "5-alpine"
 }
+
 
 group "default" {
   targets = ["latest"]
