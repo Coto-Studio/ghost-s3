@@ -13,7 +13,7 @@ permissions:
 jobs:
   cs-docker-build-image:
     name: CS Workflow
-    uses: Coto-Studio/workflows/.github/workflows/docker-build-image-v2.yml@main
+    uses: Coto-Studio/workflows/.github/workflows/docker-build-image-v4.yml@main
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
