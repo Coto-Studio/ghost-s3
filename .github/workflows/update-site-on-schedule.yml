@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 4 * * *"
   workflow_dispatch:
+    inputs:
+      force_keepalive:
+        description: "Commit the keepalive timestamp regardless of when the repo was last pushed"
+        type: boolean
+        default: false
 
 permissions:
   packages: write
@@ -43,12 +48,14 @@ jobs:
           REPO: ${{ github.repository }}
           THRESHOLD_DAYS: "45"
           KEEPALIVE_PATH: .github/keepalive
+          # Empty on schedule runs; only workflow_dispatch can set it.
+          FORCE: ${{ inputs.force_keepalive }}
         run: |
           pushed_at=$(gh api "repos/$REPO" --jq .pushed_at)
           age=$(( ( $(date -u +%s) - $(date -u -d "$pushed_at" +%s) ) / 86400 ))
-          echo "Last push: $pushed_at ($age days ago, threshold ${THRESHOLD_DAYS}d)"
+          echo "Last push: $pushed_at ($age days ago, threshold ${THRESHOLD_DAYS}d, force=${FORCE:-false})"
 
-          if [ "$age" -lt "$THRESHOLD_DAYS" ]; then
+          if [ "$FORCE" != "true" ] && [ "$age" -lt "$THRESHOLD_DAYS" ]; then
             echo "Schedule is not at risk. Nothing to do."
             exit 0
           fi
