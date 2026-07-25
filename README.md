@@ -118,10 +118,42 @@ working against S3-compatible storage, and it supports multipart uploads, which
 this adapter does not.
 
 It is not a drop-in replacement here. It requires a non-empty
-`staticFileURLPrefix`, so it writes keys as `<prefix>/2026/07/photo.png` where
-this adapter writes `2026/07/photo.png`. Switching would split existing buckets
-across two layouts, and `read`/`delete` on pre-existing images would stop
-resolving. It also appears to be built for Ghost's own hosting — it is
-undocumented for self-hosters and its config shape is not a stable contract.
+`staticFileURLPrefix`, so it writes `content/images/2026/07/photo.png` where
+this adapter writes `2026/07/photo.png`. Per-feature prefixes work and are
+verified — `storage.media.adapter` / `storage.files.adapter` set to `S3Storage`
+inherit the common config and override the prefix, giving the usual
+`content/images`, `content/media`, `content/files` split.
 
-Worth revisiting when Ghost documents it, particularly before 7.0.
+The obstacle is not the bucket layout, it is the database. **Ghost stores the
+absolute asset URL**, not a `__GHOST_URL__` placeholder — the placeholder
+rewrite only applies to URLs on the site's own domain, and the asset host is a
+different domain. A published post holds the full CDN URL in `feature_image`,
+`lexical` and rendered `html`, and the same is true of `posts_meta`, `tags`,
+`users`, `settings` and `newsletters`. Relocating existing objects invalidates
+every one of those references.
+
+Three ways through it, if this migration is ever taken on:
+
+1. **Leave existing objects alone.** Set the prefix and let only new uploads
+   use it. Old URLs keep resolving. The bucket carries two layouts, and
+   `read`/`delete` on pre-existing images throw `IncorrectUsageError` —
+   `urlToPath` rejects any URL without the configured prefix — so deleting or
+   reprocessing an old image fails.
+2. **Move the objects and add one rewrite to b2-proxy.** It proxies
+   `$request_uri` straight through to the bucket key, so a
+   `rewrite ^/(\d{4}/\d{2}/.*)$ /content/images/$1 last;` maps every legacy URL
+   onto its new location with no database changes. Same `read`/`delete` caveat:
+   those calls go direct to S3 and never see the rewrite.
+3. **Move the objects and rewrite the database.** The only option that leaves
+   nothing behind. A scripted replacement across the tables above, with care
+   around the JSON in `lexical`/`mobiledoc`.
+
+The stronger argument for waiting is that none of this config is documented.
+`cdnUrl`, `staticFileURLPrefix`, `multipartUploadThresholdBytes` and
+`multipartChunkSizeBytes` are all required and all look like Ghost's own hosting
+configuration. Migrating a bucket layout onto an undocumented interface means a
+renamed key upstream breaks every site on the next nightly rebuild.
+
+Worth revisiting when Ghost documents it, particularly around 7.0 when
+`content/adapters` is due for removal. The multipart upload support is a genuine
+advantage for large video.
