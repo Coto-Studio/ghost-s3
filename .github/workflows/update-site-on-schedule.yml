@@ -11,7 +11,11 @@ permissions:
 jobs:
   check-base-image:
     name: CS Workflow
-    uses: Coto-Studio/workflows/.github/workflows/check-base-image.yml@main
+    uses: Coto-Studio/workflows/.github/workflows/check-base-image-v3.yml@main
+    with:
+      base-image: ${{ vars.BASE_IMAGE }}
+      image-name: ${{ vars.IMAGE_NAME }}
+      image-tag: ${{ vars.IMAGE_TAG }}
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
@@ -23,3 +27,38 @@ jobs:
     uses: ./.github/workflows/build-image.yml
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
+  # GitHub disables scheduled workflows after 60 days without repository
+  # activity, which silently stopped this build in June 2026. Scheduled runs
+  # do not count as activity, so commit a timestamp when the deadline nears.
+  keepalive:
+    name: Keepalive
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Reset the inactivity timer when it is close to expiring
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          THRESHOLD_DAYS: "45"
+          KEEPALIVE_PATH: .github/keepalive
+        run: |
+          pushed_at=$(gh api "repos/$REPO" --jq .pushed_at)
+          age=$(( ( $(date -u +%s) - $(date -u -d "$pushed_at" +%s) ) / 86400 ))
+          echo "Last push: $pushed_at ($age days ago, threshold ${THRESHOLD_DAYS}d)"
+
+          if [ "$age" -lt "$THRESHOLD_DAYS" ]; then
+            echo "Schedule is not at risk. Nothing to do."
+            exit 0
+          fi
+
+          # Commits authored by GITHUB_TOKEN do not trigger workflows, so this
+          # refreshes pushed_at without kicking off the build-on-push run.
+          args=(-X PUT "repos/$REPO/contents/$KEEPALIVE_PATH"
+                -f "message=🤖 keepalive: reset scheduled workflow inactivity timer"
+                -f "content=$(date -u +%Y-%m-%dT%H:%M:%SZ | base64 -w0)")
+          sha=$(gh api "repos/$REPO/contents/$KEEPALIVE_PATH" --jq .sha 2>/dev/null) \
+            && args+=(-f "sha=$sha")
+
+          gh api "${args[@]}" --jq '"Committed " + .commit.sha'
