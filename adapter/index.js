@@ -42,6 +42,9 @@ const readBool = (envValue, configValue, fallback = false) => {
  * `s3.eu-central-1.amazonaws.com`), so fall back to reading it off the endpoint
  * rather than failing a deploy that worked yesterday.
  */
+const withScheme = endpoint =>
+  !endpoint || /^[a-z][a-z0-9+.-]*:\/\//i.test(endpoint) ? endpoint : `https://${endpoint}`
+
 const regionFromEndpoint = endpoint => {
   if (!endpoint) return undefined
   const host = endpoint.replace(/^https?:\/\//, '').split('/')[0]
@@ -73,7 +76,12 @@ class S3Storage extends StorageBase {
     this.bucket = process.env.GHOST_STORAGE_ADAPTER_S3_PATH_BUCKET || bucket
     if (!this.bucket) throw new Error('S3 storage adapter: bucket not specified')
 
-    this.endpoint = process.env.GHOST_STORAGE_ADAPTER_S3_ENDPOINT || endpoint || ''
+    // SDK v2 took a bare host (`s3.us-east-005.backblazeb2.com`) and assumed
+    // https; v3 parses the endpoint as a URL and fails every request with
+    // "Invalid URL" without a scheme.
+    this.endpoint = withScheme(
+      process.env.GHOST_STORAGE_ADAPTER_S3_ENDPOINT || endpoint || ''
+    )
 
     this.region =
       process.env.AWS_DEFAULT_REGION || region || regionFromEndpoint(this.endpoint)

@@ -31,6 +31,22 @@ async function main () {
     new Adapter({ bucket: 'b', endpoint: 'https://s3.us-west-004.backblazeb2.com' })
       .region === 'us-west-004')
 
+  // SDK v2 accepted a bare host as the endpoint; v3 needs a URL. Stacks
+  // configure B2 as `s3.<region>.backblazeb2.com`, so the scheme is added.
+  const bareHost = new Adapter({ bucket: 'b', endpoint: 's3.us-west-004.backblazeb2.com' })
+  check('bare-host endpoint gets an https scheme',
+    bareHost.endpoint === 'https://s3.us-west-004.backblazeb2.com', bareHost.endpoint)
+  check('region derived from a bare-host endpoint', bareHost.region === 'us-west-004')
+  let resolved = ''
+  try {
+    const ep = await bareHost.s3().config.endpoint()
+    resolved = `${ep.protocol}//${ep.hostname}`
+  } catch (e) { resolved = e.message }
+  check('SDK resolves a bare-host endpoint',
+    resolved === 'https://s3.us-west-004.backblazeb2.com', resolved)
+  check('explicit http endpoint is left alone',
+    new Adapter({ bucket: 'b', region: 'x', endpoint: 'http://minio:9000' }).endpoint === 'http://minio:9000')
+
   let regionErr = ''
   try { new Adapter({ bucket: 'b', endpoint: 'https://nyc3.digitaloceanspaces.com' }) } catch (e) { regionErr = e.message }
   check('missing, underivable region throws a clear error',
